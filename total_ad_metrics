@@ -1,0 +1,83 @@
+WITH ad_total_numbers AS (
+  SELECT 
+  	fabd.ad_date, fc.campaign_name, fabd.spend, fabd.impressions, fabd.reach, fabd.clicks,fabd.leads, value	
+  FROM facebook_ads_basic_daily fabd 
+  LEFT JOIN facebook_campaign fc ON
+  	fc.campaign_id = fabd.campaign_id 
+  UNION ALL 
+  SELECT 
+  	ad_date, campaign_name, spend, impressions, reach, clicks,leads, value
+  FROM google_ads_basic_daily gabd 
+)
+SELECT 
+	total.ad_date, 
+	sum(total.spend) AS total_spend,
+	sum(total.impressions) AS total_impressions,
+	sum(total.clicks) AS total_clicks,
+	sum(total.value) AS total_value
+FROM ad_total_numbers total
+GROUP BY total.ad_date, total.campaign_name
+
+--Загальна сума витрат для кампаній
+WITH ad_total_numbers AS (
+  SELECT 
+  	fabd.ad_date, fc.campaign_name, fabd.spend, fabd.impressions, fabd.reach, fabd.clicks,fabd.leads, value	
+  FROM facebook_ads_basic_daily fabd 
+  LEFT JOIN facebook_campaign fc ON
+  	fc.campaign_id = fabd.campaign_id 
+  UNION ALL 
+  SELECT 
+  	ad_date, campaign_name, spend, impressions, reach, clicks,leads, value
+  FROM google_ads_basic_daily gabd 
+)
+SELECT 
+	total.ad_date, 
+	total.campaign_name,
+	sum(total.spend) AS total_spend
+FROM ad_total_numbers total
+GROUP BY total.ad_date, total.campaign_name
+
+--Additional 1: Кампанія з найвищим ROMI серед усіх кампаній з загальною сумою витрат більше 500 000.
+
+WITH ad_total_numbers AS (
+  SELECT fabd.ad_date, fc.campaign_name, fabd.spend, value	
+  FROM facebook_ads_basic_daily fabd 
+  LEFT JOIN facebook_campaign fc ON
+  	fc.campaign_id = fabd.campaign_id
+  UNION ALL 
+  SELECT ad_date, campaign_name, spend, value
+  FROM google_ads_basic_daily gabd 
+)
+SELECT  
+	total.campaign_name,
+	round((sum(value) - sum(spend))/ sum(spend::numeric)*100, 2) as "ROMI"
+FROM ad_total_numbers total
+GROUP BY total.campaign_name
+HAVING sum(spend) > 500000
+ORDER BY "ROMI" DESC
+LIMIT 1
+
+--Additional 2: В цій кампанії визначити групу оголошень (adset_name) з найвищим ROMI.
+
+WITH ad_total_numbers AS (
+  SELECT 
+  	fabd.ad_date, fc.campaign_name, fa.adset_name, fabd.spend, value	
+  FROM facebook_ads_basic_daily fabd 
+  LEFT JOIN facebook_campaign fc ON
+  	fc.campaign_id = fabd.campaign_id
+  LEFT JOIN facebook_adset fa ON
+  	fa.adset_id = fabd.adset_id 	
+  UNION ALL 
+  SELECT 
+  	ad_date, campaign_name, adset_name, spend, value
+  FROM google_ads_basic_daily gabd 
+)
+SELECT  
+	total.campaign_name,
+	total.adset_name,
+	round((sum(value) - sum(spend))/ sum(spend::numeric)*100, 2) as "ROMI"
+FROM ad_total_numbers total
+GROUP BY total.campaign_name, total.adset_name
+HAVING sum(spend) > 500000
+ORDER BY "ROMI" DESC 
+LIMIT 1
